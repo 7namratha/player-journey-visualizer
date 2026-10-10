@@ -17,7 +17,7 @@ A browser tool for Level Designers to see how players move, fight, loot and die 
 ## Tech stack
 | Layer | Choice |
 |---|---|
-| UI | Plain HTML, CSS and JavaScript (no framework, no TypeScript) |
+| UI |  HTML, CSS and JavaScript |
 | Rendering | Canvas 2D |
 | Data | Pre-generated `data/analysis.js`, converted once from the supplied Parquet files |
 | Build | None |
