@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LILA BLACK · Player Journey Map</title>
+<meta name="description" content="Interactive tactical map of player journeys, kill zones and heat across LILA BLACK maps." />
+<link rel="icon" type="image/svg+xml" href="favicon.svg" />
+<link rel="preconnect" href="https://fonts.googleapis.com" /><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Manrope:wght@400;500;600;700&display=swap" />
+<link rel="stylesheet" href="css/app.css" />
+</head>
+<body>
+<header class="bar">
+  <div class="brand"><span class="mark"><i></i><i></i><i></i></span><b>LILA BLACK</b><span class="sub">Player journeys</span></div>
+  <div class="scope">
+    <button class="ghost" id="btnReset" title="Reset all filters">Reset</button>
+    <button class="ghost" id="btnHelp" title="New user experience guide">New user guide</button>
+  </div>
+</header>
+
+<main class="deck">
+  <aside class="rail left">
+    <section class="filters" aria-label="Filters">
+      <h2>Time period</h2>
+      <div class="seg small" id="segGran" role="group" aria-label="Date aggregation"></div>
+      <select id="selPeriod" aria-label="Period"></select>
+      <div class="dates" id="customBox" hidden>
+        <label>From<input type="date" id="dFrom" /></label>
+        <label>To<input type="date" id="dTo" /></label>
+      </div>
+      <p class="hint" id="rangeNote"></p>
+
+      <h2>Map</h2>
+      <div class="maplist" id="mapList" role="group" aria-label="Map"></div>
+
+      <h2>Match</h2>
+      <div class="combo">
+        <input type="search" id="matchQ" placeholder="Search match ID…" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="matchOpts" aria-label="Search match ID" />
+        <div class="opts" id="matchOpts" role="listbox" hidden></div>
+      </div>
+      <div class="chip" id="matchChip" hidden></div>
+
+      <h2>Player</h2>
+      <div class="who" id="segWho" role="group" aria-label="Player type"></div>
+      <div class="combo" id="playerCombo" hidden>
+        <input type="search" id="playerQ" placeholder="Search player ID…" autocomplete="off" spellcheck="false" role="combobox" aria-expanded="false" aria-controls="playerOpts" aria-label="Search player ID" />
+        <div class="opts" id="playerOpts" role="listbox" hidden></div>
+      </div>
+      <div class="chip" id="playerChip" hidden></div>
+    </section>
+    <section><h2>In scope</h2><div class="stats" id="stats"></div></section>
+    <section>
+      <h2>Map layer</h2>
+      <div class="seg" id="segLayer"></div>
+      <div class="seg small" id="segHeat"><button data-v="smooth">Smooth</button><button data-v="grid">10×10 grid</button></div>
+      <p class="hint">Heat layers hide unrelated markers. Choose Paths to see everything.</p>
+    </section>
+    <section><h2>Signals</h2><div id="signals"></div>
+      <label class="slider">Event density <input id="density" type="range" min="0" max="100" /><output id="densityOut"></output></label>
+    </section>
+  </aside>
+
+  <section class="stage" id="stage" tabindex="0" role="application" aria-label="Interactive match map. Drag to pan, scroll to zoom, arrow keys pan, plus and minus zoom, zero resets.">
+    <canvas id="cv"></canvas>
+    <div class="hud tools" role="toolbar" aria-label="Map tools">
+      <button id="zOut" title="Zoom out (−)">−</button><span id="zoomLbl">100%</span><button id="zIn" title="Zoom in (+)">+</button>
+      <button id="zReset" title="Reset view (0)">⌖</button><i></i>
+      <button id="tProbe" title="Zone probe (P)" aria-pressed="false">Probe</button>
+      <button id="tGrid" title="Callout grid (G)" aria-pressed="true">Grid</button>
+      <button id="tFollow" title="Follow selected player (F)" aria-pressed="false">Follow</button><i></i>
+      <span class="readout" id="readout">Hover the map for coordinates</span>
+    </div>
+    <div class="hud trace" id="trace" hidden></div>
+    <div class="hud feed" id="feed" aria-live="polite"></div>
+    <div class="hud mini"><canvas id="mini" width="176" height="176" aria-label="Map overview. Click to move the view."></canvas></div>
+    <div class="hud legend" id="legend"></div>
+    <aside class="hud detail" id="detail" hidden></aside>
+    <div class="hud tip" id="tip" hidden></div>
+    <div class="overview" id="overview" hidden></div>
+    <div class="empty" id="empty" hidden><b>No match data in this scope</b><span>Try a wider date range, another map, match or player.</span><button class="ghost" id="btnClear">Clear filters</button></div>
+  </section>
+
+  <aside class="rail right">
+    <section class="probe" id="probe"><h2>Zone probe</h2><p class="hint">Turn on Probe, then drag a circle on the map to measure traffic, fights, deaths and loot inside it.</p></section>
+    <section class="roster">
+      <h2>Roster <span class="pill" id="rosterCount">0</span><button class="ghost icon" id="btnReverse" title="Reverse order">⇅</button></h2>
+      <input type="search" id="search" placeholder="Find participant…" aria-label="Find participant" />
+      <div id="rosterList"></div>
+      <p class="hint" id="rosterFoot"></p>
+    </section>
+  </aside>
+</main>
+
+<footer class="dock">
+  <div class="transport">
+    <button id="bStart" title="Start (Home)">⏮</button><button id="bBack" title="Back (←)">◀</button>
+    <button id="bPlay" class="play" title="Play / pause (Space)">▶</button>
+    <button id="bFwd" title="Forward (→)">▶</button><button id="bEnd" title="End">⏭</button>
+    <div class="seg small" id="segSpeed"></div>
+  </div>
+  <div class="clock"><b id="tNow">00:00</b><span id="tMax">/ 00:00</span></div>
+  <div class="track" id="track" role="slider" tabindex="0" aria-label="Match playback position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><canvas id="tl"></canvas></div>
+</footer>
+
+<dialog id="guide" aria-labelledby="guideTitle">
+  <form method="dialog" class="guide-content">
+    <div class="guide-kicker">PLAYER JOURNEY VISUALIZER · QUICK START</div>
+    <h3 id="guideTitle">New User Experience Guide</h3>
+    <p class="guide-intro">Use this guide to set your scope, explore player movement, compare signals, and control playback—all in one place.</p>
+    <section class="guide-card">
+      <h4>01 · Set your scope</h4>
+      <ol>
+        <li>Choose a <b>Time period</b> (Day, Week, Month, Year or Custom range).</li>
+        <li>Select a <b>Map</b>. Choose one map to inspect player positions; <b>All Maps</b> shows a per-map summary because map coordinates differ.</li>
+        <li>Use <b>Match</b> search to find a match ID, then choose <b>Player</b> to view everyone, humans, bots, or one player.</li>
+        <li>Use <b>Reset</b> in the top bar to return to the default filters.</li>
+      </ol>
+    </section>
+    <section class="guide-card">
+      <h4>02 · Read and explore the map</h4>
+      <ul>
+        <li>Human players are round tokens; bots are teal diamonds. Trails show movement and event markers show signals.</li>
+        <li>Choose a <b>Map layer</b> to focus on paths, kills, deaths, or traffic. Use <b>Smooth</b> or <b>10×10 grid</b> for heatmap presentation.</li>
+        <li>Toggle <b>Signals</b> to show or hide kills, deaths, storm deaths, loot, and other events. Event density adjusts signal visibility.</li>
+        <li>Turn on <b>Probe</b>, then drag a circle on the map to measure activity in a zone. Use Grid and Follow when useful.</li>
+      </ul>
+    </section>
+    <section class="guide-card">
+      <h4>03 · Play back a journey</h4>
+      <p>Use the timeline at the bottom to scrub through the match. The transport controls start, pause, step, or jump to the beginning/end. With <b>All Matches</b> selected, journeys are overlaid and aligned at 00:00.</p>
+      <p>Positions use world <b>X</b> and <b>Z</b> mapped through each map’s origin and scale; world Y is elevation. Time is shown as mm:ss from each journey’s start. Source positions are sampled approximately every 5 seconds.</p>
+    </section>
+    <section class="guide-card guide-shortcuts">
+      <h4>04 · Keyboard shortcuts</h4>
+      <dl>
+        <dt>Space</dt><dd>Play / pause</dd><dt>← / →</dt><dd>Step through the timeline</dd>
+        <dt>Scroll / drag</dt><dd>Zoom to cursor / pan</dd><dt>+ / − / 0</dt><dd>Zoom in / out / reset view</dd>
+        <dt>H</dt><dd>Cycle map layer</dd><dt>P / G / F</dt><dd>Probe / grid / follow</dd>
+        <dt>1–5</dt><dd>Toggle event signals</dd><dt>Esc</dt><dd>Clear selection and probe</dd>
+      </dl>
+    </section>
+    <button class="ghost guide-close">Close guide</button>
+  </form>
+</dialog>
+
+<dialog id="journeyComplete" aria-labelledby="journeyCompleteTitle">
+  <form method="dialog" class="guide-content">
+    <div class="guide-kicker">PLAYER JOURNEY VISUALIZER · PLAYBACK</div>
+    <h3 id="journeyCompleteTitle">Journey complete</h3>
+    <p class="guide-intro">You’ve reached the end of the current playback. Review the final positions, or replay the journey from the beginning.</p>
+    <div class="journey-complete-meta"><span class="journey-complete-mark" aria-hidden="true">✓</span><div><b>End of journey</b><small>Playback is paused at the final timestamp.</small></div></div>
+    <div class="journey-complete-actions">
+      <button class="ghost" value="close">Close</button>
+      <button class="journey-replay" id="btnReplayJourney" value="replay">↻ Replay journey</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="data/analysis.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
